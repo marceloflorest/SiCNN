@@ -1,0 +1,29 @@
+=== INFORME DE IMÁGENES ANALIZADAS ===
+Total de imágenes analizadas: 2
+Porcentaje legítimos: 50.00%
+Porcentaje phishing: 50.00%
+
+=== DETALLE POR IMAGEN ===
+--- PHISHING ---
+- [100.0%] imagen-de-phishing_hospi.jpg | Remitente: marcelodaniel142001@gmail.com | Asunto: (sin asunto)
+  correo: 1
+  url: 1
+  archivo: 0
+  imagen: 0
+  asunto: 1
+
+--- LEGÍTIMOS ---
+- [0.0%] imagen_legitimo.png | Remitente: somosessaludcomunica@essalud.gob.pe | Asunto: Concurso Nacional para la composición del Himno Institucional de EsSalud
+
+=== RESUMEN ===
+Top remitente con más ataques de phishing:
+Remitente: marcelodaniel142001@gmail.com
+Cantidad de correos de phishing: 1
+Porcentaje sobre el total de phishing: 100.0%
+
+Indicadores más frecuentes en las imágenes de phishing:
+correo (dominio sospechoso): 100.0% de los phishing
+url (enlace/llamado a la acción): 100.0% de los phishing
+archivo (documento adjunto): 0.0% de los phishing
+imagen (imagen adjunta): 0.0% de los phishing
+asunto (vacío/anómalo): 100.0% de los phishing

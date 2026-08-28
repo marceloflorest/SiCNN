@@ -1,0 +1,27 @@
+RESULTADOS DEL MODELO (SiCNN)
+========================================
+Total de correos evaluados: 5300
+Accuracy : 100.00 %
+Precision: 100.00 %
+Recall   : 100.00 %
+F1-score : 100.00 %
+
+MATRIZ DE CONFUSIÓN
+========================================
+
+                 PREDICCIÓN
+            Legítimo   Phishing
+Legítimo  | VN = 5200  | FP = 0     |
+Phishing  | FN = 0     | VP = 100   |
+
+========================================
+EVALUACIÓN DE LA BLOCKCHAIN (SHA-256)
+========================================
+Bloques de prueba creados: 20
+Trazabilidad de datos: 100.00 %
+Confiabilidad del registro: 100.00 %
+Alteraciones simuladas: 5
+Alteraciones no autorizadas detectadas: 100.00 %
+Registros inmutables: 100.00 %
+Evidencia de modificación: 100.00 %
+Estado de la cadena tras las alteraciones: CORROMPIDA (detectada correctamente)

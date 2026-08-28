@@ -1,0 +1,11 @@
+pandas
+openpyxl
+scikit-learn
+scipy
+tensorflow
+google-auth
+google-auth-oauthlib
+google-api-python-client
+pytesseract
+pillow
+flask
