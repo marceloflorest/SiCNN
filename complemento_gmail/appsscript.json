@@ -9,13 +9,17 @@
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/script.external_request"
   ],
+  "urlFetchWhitelist": [
+    "https://cash-politely-detector.ngrok-free.dev/"
+  ],
   "gmail": {
     "name": "Detección de Phishing",
     "logoUrl": "https://www.gstatic.com/images/icons/material/system/1x/security_black_24dp.png",
     "primaryColor": "#2563eb",
     "secondaryColor": "#1d4ed8",
     "homepageTrigger": {
-      "runFunction": "alAbrirBandeja"
+      "runFunction": "alAbrirBandeja",
+      "enabled": true
     },
     "contextualTriggers": [
       {
@@ -24,8 +28,7 @@
       }
     ],
     "openLinkUrlPrefixes": [
-      "http://127.0.0.1:5000/",
-      "https://REEMPLAZA-CON-TU-URL-DE-NGROK.ngrok-free.app/"
+      "https://cash-politely-detector.ngrok-free.dev/"
     ]
   }
 }
