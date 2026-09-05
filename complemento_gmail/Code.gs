@@ -1,39 +1,40 @@
 /**
- * COMPLEMENTO DE GMAIL - Detección de Phishing (SiCNN)
- * =========================================================
- * IMPORTANTE: cambia esta URL por la de tu servidor (ver instrucciones
- * en README_complemento.md sobre cómo exponerlo con ngrok).
+ * COMPLEMENTO DE GMAIL - Detección de Phishing (AlexNet)
  */
-const URL_SERVIDOR = "http://127.0.0.1:5000"; // <-- CAMBIAR por tu URL de ngrok
+const URL_SERVIDOR = "https://cash-politely-detector.ngrok-free.dev"; // URL de tu servidor ngrok
 
 /**
- * Se ejecuta cuando el usuario abre Gmail SIN tener un correo abierto
- * (ej. viendo la bandeja de entrada). Ofrece analizar varios correos.
+ * Se ejecuta al abrir Gmail sin correo seleccionado (Bandeja de entrada).
+ * IMPORTANTE: Debe devolver un ARREGLO de tarjetas: [ tarjeta ]
  */
 function alAbrirBandeja(e) {
-  return construirTarjeta({
-    contexto: "bandeja",
-    tituloBoton: "Analizar bandeja de entrada",
-    funcionAnalizar: "analizarBandeja",
-  });
+  return [
+    construirTarjeta({
+      contexto: "bandeja",
+      tituloBoton: "Analizar bandeja de entrada",
+      funcionAnalizar: "analizarBandeja",
+    })
+  ];
 }
 
 /**
- * Se ejecuta cuando el usuario tiene un correo ABIERTO. Ofrece analizar
- * solo ese correo.
+ * Se ejecuta al abrir un correo electrónico específico.
+ * IMPORTANTE: Debe devolver un ARREGLO de tarjetas: [ tarjeta ]
  */
 function alAbrirCorreo(e) {
-  return construirTarjeta({
-    contexto: "correo",
-    tituloBoton: "Analizar este correo",
-    funcionAnalizar: "analizarCorreoActual",
-    messageId: e.gmail ? e.gmail.messageId : null,
-  });
+  const messageId = (e && e.gmail && e.gmail.messageId) ? e.gmail.messageId : null;
+  return [
+    construirTarjeta({
+      contexto: "correo",
+      tituloBoton: "Analizar este correo",
+      funcionAnalizar: "analizarCorreoActual",
+      messageId: messageId,
+    })
+  ];
 }
 
 /**
- * Construye la tarjeta visual: botón de analizar, y botón de descargar
- * (bloqueado hasta que se haya analizado algo).
+ * Construye la interfaz visual inicial.
  */
 function construirTarjeta(opciones) {
   const props = PropertiesService.getUserProperties();
@@ -43,27 +44,31 @@ function construirTarjeta(opciones) {
   const seccionAnalizar = CardService.newCardSection()
     .setHeader("Detección de correo");
 
+  const accionAnalizar = CardService.newAction()
+    .setFunctionName(opciones.funcionAnalizar);
+  
+  if (opciones.messageId) {
+    accionAnalizar.setParameters({ messageId: String(opciones.messageId) });
+  }
+
   const botonAnalizar = CardService.newTextButton()
     .setText(opciones.tituloBoton)
-    .setOnClickAction(
-      CardService.newAction()
-        .setFunctionName(opciones.funcionAnalizar)
-        .setParameters(opciones.messageId ? { messageId: opciones.messageId } : {})
-    );
+    .setOnClickAction(accionAnalizar);
+
   seccionAnalizar.addWidget(botonAnalizar);
 
-  const botonDescargar = CardService.newTextButton().setText("Descargar informe (Excel)");
-
   if (tokenGuardado && archivoGuardado) {
-    // Habilitado: abre el enlace de descarga en el navegador
-    botonDescargar.setOpenLink(
-      CardService.newOpenLink().setUrl(`${URL_SERVIDOR}/descargar/${archivoGuardado}`)
-    );
+    const botonDescargar = CardService.newTextButton()
+      .setText("Descargar último informe (Excel)")
+      .setOpenLink(
+        CardService.newOpenLink().setUrl(`${URL_SERVIDOR}/descargar/${archivoGuardado}`)
+      );
+    seccionAnalizar.addWidget(botonDescargar);
   } else {
-    // Bloqueado: sin analizar aún, el botón no hace nada
-    botonDescargar.setDisabled(true);
+    seccionAnalizar.addWidget(
+      CardService.newTextParagraph().setText("<i>Analiza correos para habilitar la descarga del informe Excel.</i>")
+    );
   }
-  seccionAnalizar.addWidget(botonDescargar);
 
   const card = CardService.newCardBuilder()
     .setHeader(CardService.newCardHeader().setTitle("Detección de Phishing"))
@@ -76,7 +81,7 @@ function construirTarjeta(opciones) {
  * Analiza los correos recientes de la bandeja de entrada.
  */
 function analizarBandeja(e) {
-  const hilos = GmailApp.getInboxThreads(0, 15); // últimos 15 hilos
+  const hilos = GmailApp.getInboxThreads(0, 15);
   const correos = [];
 
   hilos.forEach((hilo) => {
@@ -87,7 +92,7 @@ function analizarBandeja(e) {
       fecha_hora: Utilities.formatDate(ultimo.getDate(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm"),
       asunto: ultimo.getSubject() || "",
       remitente: ultimo.getFrom() || "",
-      texto_correo: ultimo.getPlainBody().substring(0, 3000), // límite razonable
+      texto_correo: ultimo.getPlainBody().substring(0, 3000),
     });
   });
 
@@ -95,10 +100,15 @@ function analizarBandeja(e) {
 }
 
 /**
- * Analiza solo el correo actualmente abierto.
+ * Analiza solo el correo actual.
  */
 function analizarCorreoActual(e) {
-  const messageId = e.parameters.messageId;
+  const messageId = e.parameters ? e.parameters.messageId : null;
+  
+  if (!messageId) {
+    return construirTarjetaError("No se pudo obtener el ID del correo actual.");
+  }
+
   const mensaje = GmailApp.getMessageById(messageId);
 
   const correo = {
@@ -113,73 +123,83 @@ function analizarCorreoActual(e) {
 }
 
 /**
- * Envía los correos extraídos al servidor Python para clasificar, y
- * construye la tarjeta de resultado.
+ * Envía los datos a tu backend Flask/FastAPI en Ngrok.
  */
 function enviarYMostrarResultado(correos, contexto) {
   const opciones = {
     method: "post",
     contentType: "application/json",
+    headers: {
+      "ngrok-skip-browser-warning": "true" 
+    },
     payload: JSON.stringify({ correos: correos }),
     muteHttpExceptions: true,
   };
 
-  const respuesta = UrlFetchApp.fetch(`${URL_SERVIDOR}/api/analizar`, opciones);
-  const datos = JSON.parse(respuesta.getContentText());
+  try {
+    const respuesta = UrlFetchApp.fetch(`${URL_SERVIDOR}/api/analizar`, opciones);
+    const contenido = respuesta.getContentText();
+    const datos = JSON.parse(contenido);
 
-  if (datos.error) {
-    return construirTarjetaError(datos.error);
+    if (datos.error) {
+      return construirTarjetaError(datos.error);
+    }
+
+    const props = PropertiesService.getUserProperties();
+    props.setProperty("ultimo_token", datos.token || "");
+    props.setProperty("ultimo_archivo", datos.archivo || "");
+
+    return construirTarjetaResultado(datos, contexto);
+  } catch (err) {
+    return construirTarjetaError("Error al conectar con el servidor ngrok: " + err.message);
   }
-
-  // Guardar el token/archivo para habilitar el botón de descarga
-  const props = PropertiesService.getUserProperties();
-  props.setProperty("ultimo_token", datos.token);
-  props.setProperty("ultimo_archivo", datos.archivo);
-
-  return construirTarjetaResultado(datos, contexto);
 }
 
+/**
+ * Renderiza los resultados procesados en la tarjeta.
+ */
 function construirTarjetaResultado(datos, contexto) {
   const seccion = CardService.newCardSection().setHeader("Resultado del análisis");
 
   seccion.addWidget(
-    CardService.newKeyValue()
+    CardService.newDecoratedText()
       .setTopLabel("Total analizado")
-      .setContent(String(datos.total))
+      .setText(String(datos.total))
   );
   seccion.addWidget(
-    CardService.newKeyValue()
+    CardService.newDecoratedText()
       .setTopLabel("Legítimos")
-      .setContent(String(datos.legitimos))
+      .setText(String(datos.legitimos))
   );
   seccion.addWidget(
-    CardService.newKeyValue()
+    CardService.newDecoratedText()
       .setTopLabel("Phishing")
-      .setContent(String(datos.phishing))
+      .setText(String(datos.phishing))
   );
 
-  // Si es un solo correo, mostrar el detalle directo
-  if (contexto === "correo" && datos.resultados.length === 1) {
+  if (contexto === "correo" && datos.resultados && datos.resultados.length === 1) {
     const r = datos.resultados[0];
     seccion.addWidget(
-      CardService.newKeyValue()
+      CardService.newDecoratedText()
         .setTopLabel("Clasificación")
-        .setContent(`${r.clasificacion} (${r.probabilidad_phishing}%)`)
+        .setText(`${r.clasificacion} (${r.probabilidad_phishing}%)`)
     );
   }
 
   if (datos.blockchain) {
     seccion.addWidget(
-      CardService.newKeyValue()
+      CardService.newDecoratedText()
         .setTopLabel("Registrado en Blockchain")
-        .setContent(`${datos.blockchain.bloques_creados} bloque(s) — ${datos.blockchain.cadena_valida ? "Cadena válida ✓" : "⚠ Cadena corrompida"}`)
+        .setText(`${datos.blockchain.bloques_creados} bloque(s) — ${datos.blockchain.cadena_valida ? "Cadena válida ✓" : "⚠ Cadena corrompida"}`)
     );
   }
 
-  const botonDescargar = CardService.newTextButton()
-    .setText("Descargar informe (Excel)")
-    .setOpenLink(CardService.newOpenLink().setUrl(`${URL_SERVIDOR}/descargar/${datos.archivo}`));
-  seccion.addWidget(botonDescargar);
+  if (datos.archivo) {
+    const botonDescargar = CardService.newTextButton()
+      .setText("Descargar informe (Excel)")
+      .setOpenLink(CardService.newOpenLink().setUrl(`${URL_SERVIDOR}/descargar/${datos.archivo}`));
+    seccion.addWidget(botonDescargar);
+  }
 
   const card = CardService.newCardBuilder()
     .setHeader(CardService.newCardHeader().setTitle("Detección de Phishing"))
@@ -190,6 +210,9 @@ function construirTarjetaResultado(datos, contexto) {
     .build();
 }
 
+/**
+ * Renderiza mensajes de error.
+ */
 function construirTarjetaError(mensajeError) {
   const seccion = CardService.newCardSection().setHeader("Error");
   seccion.addWidget(CardService.newTextParagraph().setText(mensajeError));
